@@ -7,42 +7,52 @@ public class Main {
 
     public static void main(String[] args) throws IOException {
 
-
+        //long t0 = System.nanoTime();
         Reader in = new Reader();
         int n = in.nextInt();
         StringBuilder out = new StringBuilder(n * 64);
 
         Range[] ranges = new Range[n];
-        Range[] oranges = new Range[n];
+        List<Range> oranges = new ArrayList<>(n); // I know perfectly well that oranges are not ordered ranges, but in some way I thought it was funny
 
         for(int i = 0; i < n; i++){
-            oranges[i] = ranges[i] = new Range(in.nextInt(), in.nextInt());
+            oranges.add(ranges[i] = new Range(in.nextInt(), in.nextInt()));
         }
 
-       sort(oranges, (x, y) -> x.end - y.end);
+        Collections.sort(oranges);
+        Range header = new Range(0, 0);
 
-        int distinct = -1;
-        int previous = 0;
         for(int i = 0; i < n; i++){
-            if(oranges[i].end != previous){
-                distinct++;
-                previous = oranges[i].end;
+            Range self = oranges.get(i);
+            Range other = header.next;
+            Range last = header;
+
+            while(other != null){
+                if(other.end >= self.end){
+                    other.contains = 1;
+                    oranges.get(i).inside = 1;
+                    if(other.inside == 1){
+                        other.previous.next = other.next;
+                        if(other.next != null) {
+                            other.next.previous = other.previous;
+                        }
+                        other = other.previous;
+                    }
+                }
+                else if(other.end < self.start){
+                    other.previous.next = other.next;
+                    if(other.next != null) {
+                        other.next.previous = other.previous;
+                    }
+                    other = other.previous;
+                }
+
+                last = other;
+                other = other.next;
             }
-            oranges[i].end = distinct;
-        }
-        distinct++;
-        sort(oranges, (x, y) -> x.start != y.start ? x.start - y.start : y.end - x.end);
 
-        SegmentTree tree = new SegmentTree(distinct);
-
-        for(int i = 0; i < n; i++){
-            oranges[i].inside = tree.queryAndUpdate(oranges[i].end, false);
-        }
-
-        tree = new SegmentTree(distinct);
-
-        for(int i = n - 1; i >= 0; i--){
-            oranges[i].contains = tree.queryAndUpdate(oranges[i].end, true);
+            last.next = self;
+            self.previous = last;
         }
 
         for(int i = 0; i < ranges.length; i++){
@@ -59,123 +69,39 @@ public class Main {
 
         out.deleteCharAt(out.length() - 1);
         System.out.print(out);
-    }
+//        long t1 = System.nanoTime();
+//        System.out.println("");
+//        System.out.println((t1 - t0) / 1_000_000_000.0);
 
-    public static <T> void sort(T[] a, Comparator<T> comp){
-        int gap = 0;
-        while(gap < a.length) gap = (gap * 3) + 1;
-        gap/= 3;
-
-        while (gap > 0) {
-            for (int i = gap; i < a.length; i += 1) {
-
-                T temp = a[i];
-                int j = i;
-
-                while(j >= gap && comp.compare(a[j - gap],  temp) > 0){
-                    a[j] = a[j - gap];
-                    j -= gap;
-                }
-                a[j] = temp;
-            }
-            gap/= 3;
-        }
     }
 }
 
-class Range{
+
+
+
+class Range implements Comparable<Range>{
     public final int start;
-    public int end;
+    public final int end;
     public int contains;
     public int inside;
+    public Range next;
+    public Range previous;
 
     public Range(int start, int end){
         this.start = start;
         this.end = end;
         this.contains = 0;
         this.inside = 0;
+        this.next = null;
+        this.previous = null;
     }
+    @Override
+    public int compareTo(Range o){
+        return this.start != o.start ? this.start - o.start : o.end - this.end;
+    }
+
+
 }
-
-
-class SegmentTree {
-    private final int[] arr;
-    private final int size;
-    private final int height;
-    private final int log;
-
-    public SegmentTree(int size){
-        int log = 1;
-        while(1 << log < size){ log++; }
-        this.height = log + 1;
-        this.size = 1 << log;
-        this.arr = new int[2 * this.size];
-        this.log = log;
-    }
-
-    public int get(int index){
-        return arr[this.size + index];
-    }
-
-    public void update(int index, final int value){
-
-        index += this.size;
-        arr[index] = value;
-
-        for(int i = 1; i < this.height; i++){
-            index /= 2;
-            int nodeA = index << 1;
-            int nodeB = nodeA + 1;
-            arr[index] = arr[nodeA] + arr[nodeB];
-        }
-    }
-
-    public int query(int start, int end){
-        return query(start, end, 1, 1);
-    }
-
-    public int queryAndUpdate(int pivot, boolean lower){
-        pivot = pivot + this.size;
-        int pivotSum = getPivotSum(pivot, 1, this.log - 1, 0);
-        if(lower){
-            return pivotSum;
-        }
-        else return (arr[1] - 1) - pivotSum + (arr[pivot] - 1);
-    }
-
-    private int getPivotSum(int pivot, int node, int log, int res){
-        arr[node]++;
-        if(log == -1){
-            return res + arr[node] - 1;
-        }
-        int nextNode = pivot >> log;
-        if((nextNode & 1) == 0){
-            return getPivotSum(pivot, nextNode, log - 1, res);
-        }
-        else return getPivotSum(pivot, nextNode, log - 1, res + arr[nextNode - 1]);
-    }
-
-    public int query(int start, int end, int node, int depth){
-        int range = 1 << (this.height - depth);
-        int left = (node - (1 << (depth - 1))) * range;
-        int right = left + (range - 1);
-        int middle = left + (range >> 1);
-
-        if(start <= left && end >= right){
-            return this.arr[node];
-        }
-        else if(end < middle){
-            return query(start, end, node << 1, depth + 1);
-        }
-        else if(start >= middle){
-            return query(start, end, (node << 1) + 1, depth + 1);
-        }
-        else return query(start, end, (node << 1), depth + 1) +
-                    query(start, end, (node << 1) + 1, depth + 1);
-    }
-}
-
-
 
 
 
@@ -307,8 +233,3 @@ class Reader {
         din.close();
     }
 }
-
-
-
-
-

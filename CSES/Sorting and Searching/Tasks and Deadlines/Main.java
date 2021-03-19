@@ -5,61 +5,32 @@ import java.util.*;
 
 public class Main {
 
-    public static void main(String[] args) throws IOException {
+    static int[] machines;
+    static int target;
 
+    public static void main(String[] args) throws IOException {
 
         Reader in = new Reader();
         int n = in.nextInt();
-        StringBuilder out = new StringBuilder(n * 64);
-
-        Range[] ranges = new Range[n];
-        Range[] oranges = new Range[n];
+        Task[] tasks = new Task[n];
 
         for(int i = 0; i < n; i++){
-            oranges[i] = ranges[i] = new Range(in.nextInt(), in.nextInt());
+            tasks[i] = new Task(in.nextInt(), in.nextInt());
         }
 
-       sort(oranges, (x, y) -> x.end - y.end);
+        sort(tasks, (x, y) -> x.duration - y.duration);
 
-        int distinct = -1;
-        int previous = 0;
-        for(int i = 0; i < n; i++){
-            if(oranges[i].end != previous){
-                distinct++;
-                previous = oranges[i].end;
-            }
-            oranges[i].end = distinct;
-        }
-        distinct++;
-        sort(oranges, (x, y) -> x.start != y.start ? x.start - y.start : y.end - x.end);
-
-        SegmentTree tree = new SegmentTree(distinct);
+        long maximum = 0;
+        long time = 0;
 
         for(int i = 0; i < n; i++){
-            oranges[i].inside = tree.queryAndUpdate(oranges[i].end, false);
+            maximum += tasks[i].deadline - (tasks[i].duration + time);
+            time+= tasks[i].duration;
         }
 
-        tree = new SegmentTree(distinct);
-
-        for(int i = n - 1; i >= 0; i--){
-            oranges[i].contains = tree.queryAndUpdate(oranges[i].end, true);
-        }
-
-        for(int i = 0; i < ranges.length; i++){
-            out.append(ranges[i].contains);
-            out.append(" ");
-        }
-
-        out.setCharAt(out.length() - 1, '\n');
-
-        for(int i = 0; i < ranges.length; i++){
-            out.append(ranges[i].inside);
-            out.append(" ");
-        }
-
-        out.deleteCharAt(out.length() - 1);
-        System.out.print(out);
+        System.out.print(maximum);
     }
+
 
     public static <T> void sort(T[] a, Comparator<T> comp){
         int gap = 0;
@@ -83,100 +54,15 @@ public class Main {
     }
 }
 
-class Range{
-    public final int start;
-    public int end;
-    public int contains;
-    public int inside;
 
-    public Range(int start, int end){
-        this.start = start;
-        this.end = end;
-        this.contains = 0;
-        this.inside = 0;
+class Task{
+    public int duration;
+    public int deadline;
+    public Task(int duration, int deadline){
+        this.duration = duration;
+        this.deadline = deadline;
     }
 }
-
-
-class SegmentTree {
-    private final int[] arr;
-    private final int size;
-    private final int height;
-    private final int log;
-
-    public SegmentTree(int size){
-        int log = 1;
-        while(1 << log < size){ log++; }
-        this.height = log + 1;
-        this.size = 1 << log;
-        this.arr = new int[2 * this.size];
-        this.log = log;
-    }
-
-    public int get(int index){
-        return arr[this.size + index];
-    }
-
-    public void update(int index, final int value){
-
-        index += this.size;
-        arr[index] = value;
-
-        for(int i = 1; i < this.height; i++){
-            index /= 2;
-            int nodeA = index << 1;
-            int nodeB = nodeA + 1;
-            arr[index] = arr[nodeA] + arr[nodeB];
-        }
-    }
-
-    public int query(int start, int end){
-        return query(start, end, 1, 1);
-    }
-
-    public int queryAndUpdate(int pivot, boolean lower){
-        pivot = pivot + this.size;
-        int pivotSum = getPivotSum(pivot, 1, this.log - 1, 0);
-        if(lower){
-            return pivotSum;
-        }
-        else return (arr[1] - 1) - pivotSum + (arr[pivot] - 1);
-    }
-
-    private int getPivotSum(int pivot, int node, int log, int res){
-        arr[node]++;
-        if(log == -1){
-            return res + arr[node] - 1;
-        }
-        int nextNode = pivot >> log;
-        if((nextNode & 1) == 0){
-            return getPivotSum(pivot, nextNode, log - 1, res);
-        }
-        else return getPivotSum(pivot, nextNode, log - 1, res + arr[nextNode - 1]);
-    }
-
-    public int query(int start, int end, int node, int depth){
-        int range = 1 << (this.height - depth);
-        int left = (node - (1 << (depth - 1))) * range;
-        int right = left + (range - 1);
-        int middle = left + (range >> 1);
-
-        if(start <= left && end >= right){
-            return this.arr[node];
-        }
-        else if(end < middle){
-            return query(start, end, node << 1, depth + 1);
-        }
-        else if(start >= middle){
-            return query(start, end, (node << 1) + 1, depth + 1);
-        }
-        else return query(start, end, (node << 1), depth + 1) +
-                    query(start, end, (node << 1) + 1, depth + 1);
-    }
-}
-
-
-
 
 
 
