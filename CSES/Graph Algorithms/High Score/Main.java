@@ -39,9 +39,12 @@ public class Main {
         for (int i = 1; i <= n; i++) {
             for (int j = 0; j < m; j++) {
                 int from = tunnels[j][0];
+                long pointsFrom = scores[from];
+                if(pointsFrom == -INF){ continue; }
                 int to = tunnels[j][1];
                 int points = tunnels[j][2];
-                if(scores[from] + points > scores[to]){
+                long sum = pointsFrom + points;
+                if(sum > scores[to]){
                     scores[to] = scores[from] + points;
                     if(i == n){
                         cicles.add(to);
@@ -55,33 +58,20 @@ public class Main {
             return;
         }
 
-        //now the hard way: two depth first searchs
+        //now the hard way: some depth first searchs
         Node[] nodes = new Node[n + 1];
         for(int i = 1; i <= n; i++){ nodes[i] = new Node(); }
         for(int i = 0; i < m; i++){
             nodes[tunnels[i][0]].adjacents.add(tunnels[i][1]);
         }
 
-        Stack<Integer> visited = dfs(nodes, 1, -1);
-        Set<Integer> filteredCicles = new HashSet<>();
-        for(var node: visited){
-            if(cicles.contains(node)){
-                filteredCicles.add(node);
-            }
-        }
+       boolean reachesN = false;
 
-        if(filteredCicles.isEmpty()){
-            System.out.print(scores[n]);
-            return;
-        }
+        while(!cicles.isEmpty() && !reachesN){
 
-        boolean reachesN = false;
+            Stack<Integer> visited = null;
 
-        while(!filteredCicles.isEmpty() && !reachesN){
-
-            visited = null;
-
-            for(var node : filteredCicles){
+            for(var node : cicles){
                 visited = dfs(nodes, node, n);
                 break;
             }
@@ -92,7 +82,7 @@ public class Main {
                     reachesN = true;
                     break;
                 } else {
-                    filteredCicles.remove(node);
+                    cicles.remove(node);
                 }
             }
         }
