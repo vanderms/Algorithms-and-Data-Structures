@@ -6,26 +6,78 @@ public class Main{
 
     public static void main(String[] args) {
 
-      teste(1_000_000);
+        boolean isMergeFast = false;
+        final int start = 1;
+        final int total = 10_000;
+
+        System.out.println("Other: " + 0);
+
+        for(int i = start; i < total; i++){
+           if(teste(i) == 1){
+               if(!isMergeFast) {
+                  // System.out.println("Merge: " + i);
+                   isMergeFast = true;
+               }
+           }
+           else if(isMergeFast){
+               //System.out.println("Other: " + i);
+               isMergeFast = false;
+           }
+        }
     }
 
-    public static void teste(int total){
+    public static int teste(int total){
         Integer[] arr = new Integer[total];
-        Integer[] arr2 = {4, 7, 0 , 1, 1};
         Random rand = new Random();
-        for(int i = 0; i < total; i++){
-            arr[i] = rand.nextInt(total * 2);
-        }
-        Integer[] clone = Arrays.copyOf(arr, arr.length);
-        MergeSort.sort(arr, Comparator.naturalOrder());
-        MergeSort.sort(arr2, Comparator.naturalOrder());
 
-        for(int i = 1; i < total; i++){
-            if(arr[i] < arr[i - 1]){
-                int debug = 0;
+        for(int i = 0; i < total; i++){
+            arr[i] = rand.nextInt();
+        }
+
+        Integer[] clone = Arrays.copyOf(arr, arr.length);
+
+        long t0 = System.nanoTime();
+        MergeSort.sort(arr, Comparator.naturalOrder());
+        double mergeTime = (System.nanoTime() - t0) / 1_000_000_000.0;
+
+        t0 = System.nanoTime();
+        sort(clone, Comparator.naturalOrder());
+        double shellTime = (System.nanoTime() - t0) / 1_000_000_000.0;
+
+        for(int i = 0; i < total; i++){
+            if(!arr[i].equals(clone[i])){
+                System.out.println("Failed");
             }
         }
+
+        if(mergeTime < shellTime){
+            return 1;
+        } else {
+            return 0;
+        }
     }
+
+    public static <T> void sort(T[] a, Comparator<T> comp){
+        int gap = 0;
+        while(gap < a.length) gap = (gap * 3) + 1;
+        gap/= 3;
+
+        while (gap > 0) {
+            for (int i = gap; i < a.length; i += 1) {
+
+                T temp = a[i];
+                int j = i;
+
+                while(j >= gap && comp.compare(a[j - gap],  temp) > 0){
+                    a[j] = a[j - gap];
+                    j -= gap;
+                }
+                a[j] = temp;
+            }
+            gap/= 3;
+        }
+    }
+
 }
 
 class MergeSort{
@@ -33,27 +85,30 @@ class MergeSort{
     public static <T>void sort(T[] self, Comparator<T> comp) {
 
         firstPass(self, comp);
-        T[] buffer = Arrays.copyOf (self, (self.length / 2) + 1);
+        int maxStep = 1;
+        while(maxStep < self.length){
+            maxStep <<= 1;
+        }
+        maxStep >>= 1;
+        int bufferSize = Math.max(self.length - maxStep, maxStep / 2);
+
+        T[] buffer = Arrays.copyOf (self, bufferSize);
 
         for (int step = 2; step < self.length; step *= 2) {
             for (int second = self.length - step; second > 0; second -= (2 * step)) {
-                int first = second - step;
-                if (first < 0) {
-                    first = 0;
-                }
-                merge(self, buffer, comp, first, second, second + step);
+                merge(self, buffer, comp, second, step);
             }
         }
     }
 
 
-    static <T>void merge(T[] self, T[] buffer, Comparator<T> comp, int first, int second, int end) {
+    static <T>void merge(T[] self, T[] buffer, Comparator<T> comp, int second, int step) {
 
         if (comp.compare(self[second], self[second - 1]) >= 0) {
             return;
         }
 
-        int f = first;
+        int f = Math.max(second - step, 0);
         int s = second;
         int last = 0;
 
@@ -71,6 +126,7 @@ class MergeSort{
         }
 
         int idx = f + 1;
+        final int end = second + step;
         f = 0;
 
         while (f < last) {
